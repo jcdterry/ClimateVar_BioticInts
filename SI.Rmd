@@ -1,0 +1,1242 @@
+---
+title: "Supplementary information for 'Synthesising the multiple impacts of environmental variability on species responses to climate change'"
+author: 'J. C. D. Terry,  J. D. O’Sullivan &  A. G. Rossberg'
+output: 
+  pdf_document: 
+    toc: yes
+editor_options: 
+  chunk_output_type: console
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, size = "footnotesize", warning = FALSE, message = FALSE)
+
+
+```
+
+```{r message = FALSE, echo=FALSE}
+library(MASS)
+library(tidyverse)
+library(knitr)
+library(cowplot)
+set.seed(1)
+
+
+```
+
+This is a dynamically generated document using R Markdown. Source code (.rmd) for this document is available https://github.com/jcdterry/ClimateVar_BioticInts, allowing complete replication. Code to generate the diagrams in figures 2 and 3 is visible in the .rmd source file, but not included here.
+
+
+\newpage
+
+# 1. Population dynamics model incorporating multiple forms of variability
+
+## Core Model
+Throughout, we use a simple discrete time model that tracks the number of individuals of two competing species ($R$, a resident and $I$, an invader) through time at a single site. In the main text we also refer to these as a 'focal species' and a 'competitor species'. The model is designed to be as simple as possible to illustrate the processes in question. 
+
+$$R_{t+1}  =    \delta R_t    + \dfrac{\lambda_R \omega_{R,t} R_t  }{1  +\alpha_{RI}\omega_{I,t}I_t +\alpha_{RR}R_t }$$
+
+$$I_{t+1}  =    \delta I_t    + \dfrac{\lambda_I \omega_{I,t} I_t}{1 +\alpha_{II}I_t +\alpha_{IR}\omega_{R,t}R_t} $$
+
+
+In this model, the number of each population in the next generation depends on the carryover rate of the site ($\delta$) and the reproductive output of each species set by a Beverton-Holt response. The performance of each species, in terms of both their maximum fecundity in the absence of competition ($\lambda$) and the competitive pressure they exert on the other species ($\alpha$) varies due to climatic variability ($\omega$). We assume the effects of climate on the performance of both species and their ability to exert competitive pressure on the other are linked - we just use two $\omega$ terms. We do not include climate sensitivity in the intra-specific competition terms for simplicity, since our principal focus is on the dynamics of the invader species at low densities. Parameter descriptions are given in Table S1. The model is extended in the next section to include climate change, demographic stochasticity, immigration and Allee effects.
+
+|Parameter | Meaning|
+|-|-|
+|$R_{t}$ |Number of the resident population at time step t |
+| $I_{t}$|Number of the invading population at time step t |
+|$\delta$ | Population carry-over rate | 
+|$\lambda_s$ |  Mean intrinsic reproductive rate of species $s$  | 
+|$\alpha_{ij}$| Per-capita competitive impact of $j$ on $i$|
+|$\sigma_s$|Environmental sensitivity of species $s$|
+|$\omega_{s,t}$ |  Performance deviation of species $S$ from mean due to climate at time $t$ | 
+|$\sigma_s$ |  Sensitivity deviation of species $S$ to climate | 
+|$\rho$| Correlation between the envrionmental responses of the two species|
+**Table S1.** Descriptions of parameters in the core model
+
+## Weather and species performance
+
+Vectors of weather deviations from mean conditions $E$ for species at each timestep are drawn from a multivariate Gaussian distribution, where the correlation between the weather variables affecting each species is determined by $\rho$:
+
+$$\pmb{E} \sim \mathcal{N}_2(\mu_{\omega}, \Sigma) \ ,\ \ \ \ \  \Sigma = \begin{bmatrix}\sigma_R^2 & \rho\sigma_R\sigma_I \\ \rho\sigma_R\sigma_I & \sigma_I^2\end{bmatrix}$$ 
+
+These deviations are translated into performances via a Gaussian-curve shaped envrionmental performance function $f_{EPC}(E)$, scaled such that when $E = 0$, $\omega = 1$:
+
+$$\omega_t =  f_{EPC}(E_t) =    \exp \left[\eta^2-(E_t-\eta)^2)\right]  $$
+
+This function was chosen to allow a variety of curvatures via an offset parameter  $\eta$. Where $\eta$ is small, the curvature is largely negative and moderate amounts of envrionmental variation will lead to a reduction in mean value. Two examples are illustrated in Figure S1. Where $\eta$ is larger, curvature around the average E (0) becomes positive and moderate amounts of variation will result in an increase in mean value. Note however, in both cases the *geometric* mean value (relevant for the long term growth rate calculation) decreases with variance. 
+
+```{r fig.height=3, fig.width=7}
+# Plotting EPC curve used
+
+EPC<- function(WeatherDraws, OffsetFromPeak){
+  w_mat<- exp(OffsetFromPeak^2 -(WeatherDraws -OffsetFromPeak)^2   ) 
+  return(w_mat)
+}
+
+E <- seq(-2, 2, l = 1000)
+
+par(mfcol= c(1,2))
+
+plot(EPC(E,OffsetFromPeak = 1.5)~ E,
+    ylab = 'Performance Deviation',
+     main = expression(paste(eta, "=1.5")))
+abline( v = c(0))
+
+plot(EPC(E,OffsetFromPeak = 0.5)~ E,  
+     ylab = 'Performance Deviation',
+     main = expression(paste(eta, "=1.5")))
+abline( v = c(0))
+
+
+# hist(EPC(rnorm( 1000, 0 , 0.5), 1.5), main = 'Occasional very good years', xlim = c(0, 10), breaks = 20)
+# abline(v = 1, col = 2)
+# #mean(EPC(rnorm( 1000, 0 , 0.5), 1.5))  # mean increase
+# # exp(mean(log(EPC(rnorm( 1000, 0 , 0.5), 1.5))))  # but NB geometric mean is still reduced
+# 
+# 
+# hist(EPC(rnorm( 1000, 0 , 0.5), 0.5), main = 'Occasional very bad years', xlim = c(0, 2))
+# abline(v = 1, col = 2)
+# 
+# # exp(mean(log(EPC(rnorm( 1000, 0 , 0.5), 0.5))))
+# # #mean(EPC(rnorm( 1000, 0 , 0.5), 0.5))  # mean decrease
+# # exp(mean(log(EPC(0, 0.5))))
+```
+
+**Figure S1** Demonstration of control of the curvature of the envriomnental performance curve with offset parameter $\eta$.
+
+\newpage
+
+#  2. Partitioning of invasion growth rate  
+
+## Invasion growth rate
+
+The long-term average growth rate when rare $\overline{r_{inv}}$ describes whether a population would be able to rebound from low levels and hence persist at the site. In a variable environment this rate is determined by multiple interacting mechanisms that can be partitioned to show their direction and relative influence (Ellner et al. 2019). We illustrate here the most direct partitioning, focussing on just the invasion rate of species $I$, and include annotated `R` code in the next section. Here we don't examine coexistence as such, but assume that only the persistence of the focal species, (the 'invader') is in question.
+
+The rate of change in the population using our model (as detailed in the previous section) when the invader is rare ($I_t \rightarrow 0$), at a particular time and resident density is given by:
+
+$$\dfrac{I_{t+1}}{I_t}=   \delta  + \dfrac{ \lambda_I \omega_{I,t}}{1+  \alpha_{IR} \omega_{R,t}R_t}  $$
+
+Since we are using a discrete time model, the growth rate of the invader is calculated on a logarithmic scale: 
+
+$$r_{I, t} (\omega_t,R_t )=   \ln\left(\dfrac{I_{t+1}}{I_t} \right)$$
+from which the  long term mean can be calculated over a large number of time steps:
+
+$$\overline{r_{I}} (\omega,R )=  \dfrac{1}{t_{n}}  \sum_{t=1}^{t_n} r_{I,t} (\omega_t,R_t )$$
+
+
+
+## Partitioning
+
+The core of the partitioning approach is to adjust this model to successively 'switch-off' different components of variation, and then examine the differences in modeled long-term growth rate. A fixed-baseline model and a fully-variable 'full' model are essential, while the choice of intermediary models will depend on the processes to be considered. Clearly, as the number of fluctuating components rises, there is potentially a very rapid increase in the number of ways this can be done. While in principle building additional models would allow each and every component and interaction term to be determined, there is likely diminishing gains. The selection of which features to change between the models will determine the processes that can be partitioned out - there is no single universal approach, but this flexibility is an advantage. For example, some studies might find it informative to have an even more fundamental baseline, such as the mean of the climate variable under investigation rather than the mean climatic response.  
+
+The first step in this process is to determine what the values for all the terms in growth rate model would be without climatic variation or other sources of temporal variation. As discussed above, in our case (by definition), the effect of the mean environment $\overline{\omega} = 1$. The equilibrium resident density can be found directly from $1-\delta = \lambda_R/(1-a_{RR}R^*)$ as $R^* = (\lambda_R-1 +\delta)/(a_{RR}(1-\delta))$, which we use as our baseline level of residents. Alternatively, the baseline resident population could be set as an average of observed densities, or an average from model simulations $\overline{R}$ to incorporate non-linear responses in the resident population to the environment. Different choices of baseline are valid, but will influence the interpretation of the partition. If there is doubt, multiple choices could be examined and the difference considered as an additional partition. 
+
+The next step is to generate a time series of fluctuations in the environment and in the resident population, in the absence of the invader species. This could be derived directly from observations, but more likely to be generated from a statistical model based on longer time series of envrionmental variation. The time series needs to be of sufficient length to capture the full extent of variation patterns. 
+
+With these components in hand, the $\overline{r}$ when each aspect of variability is successively 'switched off' can be calculated (Table S2). In our case, we seek to partition the difference between the baseline (fully -fixed) growth rate $\overline{r}_{0}$ and the overall growth rate $\overline{r}_{full}$ into five parts. This is done by defining based on our understanding of the system (Figure S2) that: 
+
+$$\overline{r}_{full} - \overline{r}_0 =\Delta_\lambda+\Delta_\alpha+\Delta_R+\Delta_\ast+\Delta_{TSE}$$ 
+
+There must be as many alternative models as partitions, and then the contribution of each process can be found through straightforward differences between the models (Table S3). $\Delta_\ast$ is an 'interaction term' term that captures how the combined effect of the underlying non-linearities differs from a direct summation of their individual effects. As such, it doesn't have a direct ecological interpretation. Here we just fit one overall interaction term, but in principle (as we have three underlying non-linearities: $\Delta_\lambda,\Delta_\alpha,\Delta_R$) we could have built additional models to identify each pairwise interaction term too. However, in most cases this is unlikely to bring additional ecological insight and there are likely to be limited additional gains for ever finer partitions given the requirements for parameterisation.
+
+![](MS_Figures/SI_ModelDiag.png)
+
+**Figure S2** Summary of processes occurring the system that are included in the model subject to the partitioning. 
+
+|Model| Calculation  |Description| Partition Components|
+|-|-|-| -|
+| Baseline|$r_{I} (\overline{\omega_I},\overline{\omega_R},R^* )$| Baseline model at constant average conditions | $r_0$ |
+| A|$\overline{r_{I}} (\omega_I,\overline{\omega_R},R^*)$ | Varying invader growth rate with environment | $r_0 +\Delta_\lambda$|
+| B|$\overline{r_{I}} (\overline{\omega_I},\omega_R, R^*)$ | Varying per-capita competitive impact with environment  |$r_0+\Delta_\alpha$  |
+| C|$\overline{r_{I}} (\overline{\omega_I},\overline{\omega}_R,R)$ | Varying competitor number | $r_0+\Delta_R$ |
+| D|$\overline{r_{I}} (\omega_I^\#,\omega_R^\#,R^\#)$ | Varying both environment and competitor number, but without correlation | $\overline{r}_0+\Delta_\lambda+\Delta_R+\Delta_\alpha+\Delta_\ast$|
+| Full|$\overline{r_{I}} (\omega_I,\omega_R,R)$ | Full model, varying both environment and competitor number| $\overline{r}_0+\Delta_\lambda+\Delta_R+\Delta_\alpha+\Delta_\ast+\Delta_{TSE}$ |
+**Table S2** Description of models built to partition the influence of different sources of variation. 
+
+
+| Component of $\overline{r_{full}}$ | Calculation | Description|
+|-|-|-|
+| $\overline{r_0}$| Baseline | Baseline growth rate at constant average conditions | 
+| $\Delta_\lambda$ | B-$r_0$ | Impact of fluctuating invader productivity| 
+|  $\Delta_\alpha$| C-$r_0$| Impact of fluctuating impact of competitors| 
+|  $\Delta_R$| C-$r_0$| Impact of fluctuating competitor numbers  | 
+|  $\Delta_*$| D -  $\Delta_\lambda - \Delta_R - \Delta_\alpha - r_0$ | Impact of the interaction between fluctuating competitor numbers and environment| 
+| $\Delta_{TSE}$ | Full - D |  Temporal storage effect -  Impact of the correlation between species performances in a fluctuating environment | 
+**Table S3** Description of partitions and how they are calculated from the set of models. 
+
+The distinction between Model D and the complete model is worth highlighting, as it is important to identify temporal storage effects. In model D we use a climate variability vector $\omega^\#$ where $\rho = 0$ in order to remove any effects from correlations between the envrionmental responses. This plays a similar role to the randomisation of the order of R to generate $R^\#$ in the examples given in Ellner et al. (2019). In our case, because our environment is not autocorrelated in time, there is no relationship between the *number* of competitors and the weather in each year - here the relevant covariance is between performances. This illustrates how the temporal storage effect derives from covariance between intrinsic growth rates and the *impact of* competitors, not necessarily their number. Where there is a relationship, this could either be considered as a separate partition, or incorporate within one overall 'storage effect' term. 
+
+## Figure 4 examples
+
+To make Figure 4c in the main text, the partitioning described above was carried out on models parameterised as per Table S4. In both cases the envrionmental sensitivity of both species was varied by defining a sequence of average envrionmental sensitivity $\epsilon$. The resident species responded marginally more to the environment than the invader: $\sigma_I = 1.2\epsilon$ and $\sigma_R = 0.8\epsilon$. 
+
+|Parameter| Model A| Model B|
+|-|-|-|
+|$\delta$ | 0.5| 0.5 |
+|$\lambda_R$ | 20| 16 |
+|$\lambda_I$ | 24| 24  |
+|$\rho$ | -0.7| 0.7 |
+|$a_{RR}$ |0.02| 0.02 |
+|$a_{RI}$ |0.03| 0.04  |
+|$a_{IR}$ |0.04| 0.03 |
+|$\eta$| 1.5| 0.5|
+
+**Table S4** Parameters used in the models partitioned in Figure 4c of the main text. 
+
+
+
+\newpage
+
+## Partitioning code
+
+```{r echo = TRUE}
+E_Partition<- function(Params){
+  ##Function to calculate partitions using the model given a set of parameters. 
+  
+  with(Params, {  
+  n_reps = 10000
+  
+  ## Define covariance matrices
+  W_SIGMA_corr = matrix(c(W_R_sd^2,
+                          W_rho*W_R_sd*W_I_sd,
+                          W_rho*W_R_sd*W_I_sd,
+                          W_I_sd^2),
+                        2,2) 
+  
+  W_SIGMA_uncorr = matrix(c(W_R_sd^2, 
+                            0, 0,  
+                            W_I_sd^2),
+                          2,2) 
+  
+  ## Variable E draws:
+  E_mat_full  <-  mvrnorm(n_reps,   mu = c(0,0),  Sigma = W_SIGMA_corr   )  
+  E_mat_uncorr<-  mvrnorm(n_reps,   mu = c(0,0),  Sigma = W_SIGMA_uncorr   ) 
+  E_mat_mean  <-  matrix(c(0,0), nrow = 1)
+  
+  ## Convert into \omegas using gaussian curve EPC function
+  EPC<- function(WeatherDraws, OffsetFromPeak){
+    return(exp( OffsetFromPeak^2-(WeatherDraws -OffsetFromPeak)^2 )) 
+    }
+
+  W_mat_full  <-   EPC(E_mat_full, eta)  
+  W_mat_uncorr<-   EPC(E_mat_uncorr, eta)  
+  W_mat_mean  <-   EPC(E_mat_mean , eta)  
+  
+  ## Vary only one direct effect of environment
+  W_mat_FixR_VarI=   W_mat_FixI_VarR = W_mat_uncorr
+  W_mat_FixI_VarR[,2]<- W_mat_mean[2]
+  W_mat_FixR_VarI[,1]<- W_mat_mean[1]
+  
+  
+  ##### Calculating resident fluctuations without invader
+  R_fluc = rep( NA, n_reps)  # rows = time, cols = space (here 1)
+  R_fluc[1] <- 10 # initialize
+  
+  for(t in 1:(n_reps-1)){
+    R_fluc[t+1]  =  R_fluc[t]*(delta + Lam_R*W_mat_full[t,1]/(1+a_RR*R_fluc[t]))
+  }
+  
+  ### Take off a 'burn-in' period
+  ToUse = (n_reps/10):n_reps
+  R_var <- R_fluc[ToUse]
+  W_mat_uncorr<-  W_mat_uncorr[ToUse,]
+  W_mat_full<-  W_mat_full[ToUse, ]
+  
+  ## resident 'mean' value at equilibrium assuming omega = 1
+  ## R* = 
+  R_mean = (Lam_R-1+delta)/ (a_RR*(1-delta))
+  
+  ## Finding invasion growth rates in different situations;
+  FindLogGrowthRate<- function( W_Mat, Competitors, Params ){
+  with(Params, {
+    r_vec<-  delta+ (Lam_I*W_Mat[,2]/( 1+a_IR*Competitors*W_Mat[,1])  )
+    return(log(r_vec))
+  })
+}
+
+  ## No variation baseline
+  Zero_r_I =   FindLogGrowthRate(W_mat_mean, R_mean, Params)
+  
+  ## Variation in direct envrionmental effects on invader
+  A_r_I = FindLogGrowthRate(W_mat_FixR_VarI, R_mean, Params)
+  
+  ## Variation in envrionmental control of competition 
+  B_r_I = FindLogGrowthRate(W_mat_FixI_VarR, R_mean, Params)
+  
+  ### B Variation in number of competitors  
+  C_r_I =   FindLogGrowthRate( W_mat_mean, R_var, Params)
+  
+  ## D Variation in growth rates  and competitors, but not correlated 
+  D_r_I  =  FindLogGrowthRate(W_mat_uncorr,R_var, Params) 
+  ## Full model
+  Full_r_I  =  FindLogGrowthRate(W_mat_full,R_var, Params) 
+  
+  ## Take averages of log(r)
+  A_r_I_mean = mean(A_r_I)
+  B_r_I_mean = mean(B_r_I)
+  C_r_I_mean = mean(C_r_I)
+  D_r_I_mean = mean(D_r_I)
+  Full_r_I_mean = mean(Full_r_I)
+  
+  ## Calculate partitions
+  D_Baseline = Zero_r_I
+  D1_FocalEnvVar = A_r_I_mean - Zero_r_I
+  D2_CompVar = B_r_I_mean - Zero_r_I
+  D3_ResiVar = C_r_I_mean - Zero_r_I
+  D4_InterVar = D_r_I_mean - (D_Baseline+ D1_FocalEnvVar +D2_CompVar+D3_ResiVar)
+  D5_TempStor = Full_r_I_mean - D_r_I_mean
+
+  return(data.frame(Zero_r_I,  A_r_I_mean,  B_r_I_mean,   
+                    C_r_I_mean,   D_r_I_mean,  Full_r_I_mean,
+                    D_Baseline, D1_FocalEnvVar, D2_CompVar,
+                    D3_ResiVar,  D4_InterVar, D5_TempStor))})
+}
+
+
+```
+
+
+```{r}
+Params_mod1 <- list( delta = 0.5, 
+                     Lam_R = 20,
+                     Lam_I = 24,   
+                     W_R_sd = NULL,
+                     W_I_sd = NULL,
+                     W_rho = -0.7,
+                     a_RR = 0.02,  
+                     a_RI = 0.03 , 
+                     a_IR = 0.04,
+                     eta = 1.5)
+
+Params_mod2 <- list(  delta = 0.5, 
+                      Lam_R = 16,
+                      Lam_I = 25,   
+                      W_R_sd = NULL,
+                      W_I_sd = NULL, 
+                      W_rho = 0.7,
+                      a_RR = 0.02,  
+                      a_RI = 0.04 , 
+                      a_IR = 0.03,
+                      eta=0.5 )
+
+Find_Partition <-  function(W_sd, Params){
+  Params_tmp <- Params
+  Params_tmp$W_R_sd = W_sd*1.2  # resident responds more
+  Params_tmp$W_I_sd = W_sd*0.8
+  out<-   E_Partition(Params_tmp)
+  out$W_sd <-W_sd
+  return(out)
+}
+W_sd_df1 <- map_df(  seq( 0, 0.5, l = 100),Find_Partition, Params_mod1)
+W_sd_df2  <- map_df(  seq( 0, 0.4, l = 100),Find_Partition, Params_mod2)
+
+```
+
+
+```{r}
+Colours <- c(   'Zero_r_I' = 'gray60',
+                'A_r_I_mean' =  "lightgoldenrod"  ,
+                'B_r_I_mean'='tomato',
+                'C_r_I_mean'=  'deepskyblue',
+                'D_r_I_mean'='violet',
+                'Full_r_I_mean' = 'black', 
+                
+                'D_Baseline' =  "black",
+                'D1_FocalEnvVar' =  "goldenrod" ,
+                'D2_CompVar' = 'firebrick3',
+                'D3_ResiVar' = 'royalblue4',
+                'D4_InterVar' = 'darkviolet',
+                'D5_TempStor' = 'limegreen')
+# 
+
+x_label = 'Climate Variance σ^2'
+
+W_sd_df1 %>%
+  gather('model', 'GrowthRate', Zero_r_I: Full_r_I_mean  ) %>%
+  ggplot(aes( x = W_sd^2, y = GrowthRate, col = model , linetype = model     ))+
+  geom_hline( yintercept = 0, linetype='dashed')+
+  #  geom_point()+
+  geom_smooth(se = FALSE)+
+  scale_colour_manual(values = Colours)+
+  scale_linetype_manual(values = c( 2,2,2,2,1,1))+
+  theme_classic()+
+  xlab(x_label)+
+  ylab('bar{r}')  -> Models1
+
+W_sd_df1 %>%
+  gather('Partition', 'Delta', D1_FocalEnvVar :D5_TempStor ) %>%
+  ggplot(aes( x = W_sd^2, y = Delta, col = Partition      ))+
+  theme_classic()+
+  scale_colour_manual(values = Colours)+
+  ylab('Delta')+
+  xlab(x_label)+
+  geom_smooth(se = FALSE) -> Partiton1
+
+
+
+W_sd_df2 %>%
+  gather('model', 'GrowthRate', Zero_r_I: Full_r_I_mean  ) %>%
+  ggplot(aes( x = W_sd^2, y = GrowthRate, col = model  , linetype = model        ))+
+  theme_classic()+ 
+  geom_hline( yintercept = 0, linetype='dashed')+
+  geom_smooth(se = FALSE)+
+  scale_colour_manual(values = Colours)+
+  scale_linetype_manual(values = c( 2,2,2,2,1,1))+
+  xlab(x_label)+
+  ylab('bar{r}')-> Models2
+
+
+W_sd_df2 %>%
+  gather('Partition', 'Delta', D1_FocalEnvVar :D5_TempStor ) %>%
+  ggplot(aes( x = W_sd^2, y = Delta, col = Partition))+
+  scale_colour_manual(values = Colours)+
+  theme_classic()+
+  ylab('Delta')+
+  xlab(x_label)+
+  geom_smooth(se = FALSE) -> Partiton2
+
+
+Model_Legend <- cowplot::get_legend(Models1)
+D_Legend <- cowplot::get_legend(Partiton1)
+
+Fig4 <- cowplot::plot_grid(Models1+guides(col=FALSE, linetype = FALSE),
+                   Models2+guides(col=FALSE, linetype = FALSE),
+                   Model_Legend, 
+                   Partiton1+guides(col=FALSE, linetype = FALSE) ,
+                   Partiton2+guides(col=FALSE, linetype = FALSE),
+                   D_Legend,
+                   nrow = 2, rel_widths = c(2,2,1) )
+
+
+ggsave( 'MS_Figures/Figure4_graphs.png', Fig4, height = 7, width = 10)
+
+```
+
+\newpage
+
+# 3. Interactions between sources of variability 
+
+In Figure 6 of the main text,  we present some examples of how different sources of variability can interact in their effect on species response to climate change. For this analysis we extend the basic model detailed above to include climate change, immigration, demographic stochastic and Allee effects. 
+
+The model setting is a single site with a resident population. There is incoming dispersal of a potential invader species $I$, but at the start of the trial the invader cannot permanently establish, although it might transiently occur. This is designed to represent a species at its range edge. After a brief establishment phase to equilibriate the resident species, climate change is introduced that makes the environment becomes increasingly more suitable for the invader and less suitable for the resident. 
+
+The dynamics are tracked through time. Typically, the invader species is intermittently at densities above 1, before permanently establishing. At the end of the trial the number of time steps between the onset of climate change between which the invader was at a density below 1 is labeled the colonisation time. 
+
+In the models we present here we seek to look beyond direct impacts of non-linear averaging in the focal species response to the environment. To do this, as the variance of $\omega$ is varied, we maintain the mean envrionmental response $\overline{\pmb{\omega}}$ fixed at 1 by setting: $\mu_{\omega,i}  = - 0.5\sigma_i^2$.
+
+## Model Extensions
+
+### Climate change
+
+During period of climate change, starting at $t = t_{cc}$, an underlying environment term $\gamma$ increases smoothly from 0 to 1 sat the end of the trial ($t_{max}$). Each species response to the underlying environment is controlled by $\beta_s$ via $\omega$:
+
+$$ \omega^*_{s,t} = \omega_{s,t} + \beta_s\gamma_t$$
+
+### Immigration 
+
+To represent immigration of the invader into the patch, we introduce an additional time-varying term $d$ to the invader's growth equation:
+
+$$I_{t+1}  =    \delta I_t    + \dfrac{\lambda_I \omega_{I,t} I_t}{1 +a_{II}I_t +a_{IR}\omega_{R,t}R_t}+ d_t $$
+
+A vector of dispersal rates $\pmb{d}$ for each time step is drawn from a log-normal distribution, fixing the resultant mean. 
+
+$$log(\pmb{d}) \sim \mathcal{N}(d_{\mu} - d_{\sigma}^2/2, \ d_{\sigma})$$
+
+### Allee Effects
+
+To introduce Allee effects for the invader, we instead use a function with a quadratic intraspecific density-dependence component. 
+
+$$I_{t+1}  =    \delta I_t   +  \dfrac{\lambda_I \omega_{I,t} I_t^2  }{1  +(z +yI_t)I_t +a_{IR}\omega_{R,t}R_t}+ d_t$$
+
+Directly comparing functional responses with and without Allee effects is complicated by the impossibility of standardising all other aspects of the multi-species functional response simultaneously. Notwithstanding, we sought chose parameters that given an approximate correspondance between the original models (Fig S2). 
+
+```{r fig.height=3, fig.width=8}
+Lam_I = 8
+a_II = 0.05
+y = 0.1
+z= 0.2
+a_IR = 0.04 
+
+## Functional response, assuming no competition
+TrialI = seq( 0, 50, l = 1000)
+I_rate_ALLEE =  (((TrialI^2)*Lam_I) / (  1+ z*(TrialI) + y*(TrialI^2) )) / TrialI
+I_rate_NO_ALLEE =  (((TrialI)*Lam_I) / (  1 + a_II*TrialI)) / TrialI
+
+data.frame(TrialI,I_rate_ALLEE, I_rate_NO_ALLEE  ) %>%
+  gather( 'Function', 'I_rate', -TrialI ) %>%
+  ggplot( aes( x = TrialI, y = I_rate, col =Function))+
+  geom_point()+
+  xlab('Abundance of invader species') + 
+  scale_colour_brewer(labels = c( 'Allee Effect Model',
+                                  'Standard Model'))+
+  ylab('Reproductive output,\nassuming no competitors')+
+  theme_classic()
+
+```
+
+**Figure S3**  Comparison between the standard and 'Allee effect' functional responses of the invader using the chosen parameters
+
+### Demographic stochasticity
+
+To represent demographic stochasticity, the actual number in the next generation is drawn from a Poisson distribution with the expectation value as calculated by the previous equation (Shoemaker et al 2020). This also has the effect of discretising the population densities.
+
+$$I_{t+1}^\prime  \sim  Pois(I_{t+1} ),$$
+ 
+$$R_{t+1}^\prime  \sim  Pois(R_{t+1} ) $$
+
+|Parameter | Meaning|
+|-|-|
+|$\omega^*_t$| Effect of climate at time $t$, modified by climate change | 
+| $z$, $y$ | Invader intra-specific competition coefficient parameters in Allee effect model|
+|$d_t$| Invader incoming dispersal rate|
+|$d_{\mu}$| (Log) Mean incoming dispersal rate|
+|$d_{\sigma}$| (Log) Standard deviation of incoming dispersal rate|
+**Table S4** Model extension parameter descriptions
+
+
+```{r}
+Dynamics_CC<- function( Params){ with(Params,{
+  time_exp  = 2000
+  time_burnin = 20
+  max_t = time_exp+time_burnin
+  
+  
+  ## Variable Parameter specifications
+  W_SIGMA = matrix(c(W_R_sd^2,
+                     W_rho*W_R_sd*W_I_sd,
+                     W_rho*W_R_sd*W_I_sd,
+                     W_I_sd^2),
+                   2,2) 
+  
+  gamma_mat = matrix( c(rep(0, time_burnin),
+                        seq(0, 1, length =time_exp)), 
+                      nrow = max_t, ncol = 1)
+  
+  W_cc_adj = gamma_mat%*% matrix(c(beta_R, beta_I),1)
+  
+  ## Variable Draws
+  W_mat<-  exp(mvrnorm(max_t,
+                       mu = c(0,0 )- 0.5*(c(W_R_sd,W_I_sd)^2)  ,
+                       Sigma = W_SIGMA   )  )  +W_cc_adj
+  
+  Disp<-  rlnorm(max_t,
+                 meanlog =   log(disp_mean)- 0.5*(disp_sig^2) , 
+                 sdlog = disp_sig )
+  
+  ## Model initiation
+  R =I = matrix( NA, max_t)  # rows = time
+  R_star =I_star = matrix( NA, max_t )  # rows = time
+  R_star[1]<- R[1] <-  (Lam_R-1)/a_RR # start resident at somewhere near its equilibrium 
+  I_star[1]<- I[1] <- 0
+  
+  ## Running Model
+  for(t in 1:(max_t-1)){
+    
+    R_R =           R[t]*Lam_R*W_mat[t,1]  / (  1+  a_RR*R[t]+a_RI*W_mat[t,2]*I[t])
+    if(Allee){
+      I_R =  (I[t]^2*Lam_I*W_mat[t,2]) / (1+ a_IR*W_mat[t,1]*R[t]+(z+y*(I[t])*I[t]))  
+    }else{
+      I_R =  (I[t]*Lam_I*W_mat[t,2]) / (1+  a_IR*W_mat[t,1]*R[t]+ a_II*I[t] ) 
+    }
+    
+    R_star[t+1]  =    R[t]*delta  +    R_R
+    I_star[t+1]  =    I[t]*delta  +   I_R +Disp[t]
+    
+    if(Discretise){
+      R[t+1] = rpois( 1,R_star[t+1])  
+      I[t+1] = rpois( 1,I_star[t+1])
+    }  else{
+      R[t+1] = R_star[t+1]
+      I[t+1] = I_star[t+1]
+    }
+  }
+  return( list(resident = R, invader =I))
+})
+}
+
+```
+
+
+
+
+```{r}
+
+Find_Col_Time = function( Dyn){
+  if(any(Dyn$invader>1)){
+    return(  max(which(Dyn$invader < 1))-20)
+  }else{
+    return(NA)
+  }
+}
+
+Find_Ext_Time = function( Dyn){
+  if(any(Dyn$resident<1)){
+    ExtTime =  max(which(Dyn$resident >=1))-20
+    return( ExtTime)  # last time it was seen over a level
+  }else{
+    return(NA)
+  }
+}
+
+
+```
+
+
+
+```{r}
+## Example dynamics 
+Params_exp <- list( 
+  delta = 0.5, 
+  Lam_R = 20,
+  Lam_I = 17,   
+  W_R_sd = 0.4,  
+  W_I_sd = 0.4, 
+  W_rho = 0.3,
+  Allee = FALSE,
+  a_RR = 0.04,  
+  a_II = 0.03,
+  a_RI = 0.03 , 
+  a_IR = 0.04, 
+  disp_sig = 0.01 , 
+  disp_mean= 0.2,
+  beta_R =  -0.1, 
+  beta_I =  0.8, 
+  Discretise = TRUE
+)
+
+set.seed(1)
+dyn <- Dynamics_CC(Params_exp)
+
+res = dyn$resident
+res[res<1] <-1
+
+data.frame( Resident = res[1:400],
+            Invader = dyn$invader[1:400],
+            Time = (-19):380) %>%
+  gather('sp', 'count', -Time) %>%
+  ggplot(aes(Time, count , col = sp))+
+  geom_line()+
+  geom_vline(xintercept = Find_Col_Time(dyn), linetype ='dashed')+
+  scale_y_log10()+
+  theme_classic()+
+  theme(axis.text.x = element_blank())+
+  scale_color_manual(values = c('darkgreen', 'grey20'))+
+  xlab('Time since onset\nof climate change')+
+  ylab('Population')+ 
+  annotation_logticks(sides = "l") +
+  guides(col = FALSE) -> Fig6LineDiag
+
+ggsave('MS_Figures/Fig6LineDiag.png', Fig6LineDiag, height = 3, width = 3)
+
+
+data.frame( Invader_GR =Params_exp$Lam_I * c(rep(1,20),1+ (1:380) * Params_exp$beta_I/380),
+            Resident_GR = Params_exp$Lam_R * c(rep(1,20),1+ (1:380) * Params_exp$beta_R/380),
+            Time = 1:400) %>%
+  gather('sp', 'count', -Time) %>%
+  ggplot(aes(Time, count , col = sp))+
+  geom_line()+
+  scale_color_manual(values = c('darkgreen', 'grey20'))+
+  theme_classic()+
+  scale_color_brewer(palette = 'Dark2')+
+  guides(col = FALSE)+
+  ylab( 'Growth Rate at mean\ntemperature through time') -> Fig6_GR
+
+ggsave('MS_Figures/Fig6_GR.png', Fig6_GR, height = 3, width = 3)
+```
+
+\newpage
+
+## Figure 6 examples
+
+We use the model to test four interactions between components of variability in terms of impact on colonisation time. Parameter values and key settings are given in Table S5. For clarity in the main text we show average responses as determined by fitting a quadratic curve through 500 trials of each model setup. We show the full results in Figure S4.
+
+
+| Parameter | a | b | c | d |
+|-|-|-|-|-|
+|$\delta$   | 0.5| 0.5| 0.5| 0.5|                          
+|$\lambda_R$| 20|20|10| 9|                           
+|$\lambda_I$| 16|16|6|3|                           
+|$\sigma_R$ | 0.4 |0.4|X| 0/X |                         
+|$\sigma_I$ | 0.7 | 0.7|X|X| 
+|$\eta$ | 0 |0|0| 0 |                         
+|$\rho$     |  X |0| 0 | 0.9|                        
+|$a_{RR}$   |0.02| 0.02 | 0.03 | 0.05|                         
+|$a_{II}$   |0.03|0.05|0.06 |0.08|
+|$y$, $z$   | -  |0.1,0.2| -| -|
+|$a_{RI}$   |0.03|0.03|0.04 |0.03|
+|$a_{IR}$   |0.04|0.04| 0.03|0.04|           
+|$\beta_R$  |-0.1|-0.1|-0.1|-0.1|                          
+|$\beta_I$  |0.8 |0.8 |0.8 |0.8 |                           
+|$d_{\mu}$  |  0.1|  0.1| 0.15 | 0.2 |                   
+|$d_{\sigma}$|0.2| X|  0.01| 0.01|             
+|Allee | FALSE| X |FALSE | FALSE|
+|Discretise|FALSE|FALSE|X|FALSE|
+**Table S5** Parameter values used in the demonstration of interactions between sources of variability. X indicates that the value was systematically varied. 
+
+
+```{r}
+### 1. Weather covariance interacting with demographic stochasticity
+
+Params_4.1 <- list( 
+  ## Carryover
+  delta = 0.5, 
+  
+  ## Intrinsic reproductive rate terms
+  Lam_R = 20,
+  Lam_I = 16,   
+  
+  ## Weather terms
+  W_R_sd = 0.4,  ## variability in R seed production
+  W_I_sd = NULL,  ## variability in I seed production
+  #  W_rho = NULL,## correlation in species responses to weather
+  
+  ## competition terms
+  Allee = FALSE,
+  
+  # intra:
+  a_RR = 0.02,  
+  a_II = 0.03,
+  
+  # inter: (NB multiplied by weather value )
+  a_RI = 0.03 , 
+  a_IR = 0.04, 
+  
+  ## Dispersal variation
+  disp_sig = 0.2 , # dispersal variation on log scale
+  disp_mean = 0.1, #
+  
+  ## Response to climate change
+  ##  multiple larger after all  climate change? 1 = 100% larger, 2 = 200% larger
+  beta_R =  -0.1, 
+  beta_I =  0.8, 
+  
+  ## Introduce demographic stochasticity?
+  Discretise = FALSE
+)
+
+
+N_trials = 400
+WeatherDF_4.1<- data.frame( WeatherSens = c(rep(0, 100), seq(0, 0.5 , l = N_trials)) ,
+                            ColonisationTime_PosRho = NA,
+                            ColonisationTime_NegRho = NA)
+
+### With negative E correlation
+Params_4.1$W_rho = -0.9
+
+
+for( i in 1:nrow(WeatherDF_4.1)){
+  Params_trial = Params_4.1
+  Params_trial$W_I_sd = WeatherDF_4.1$WeatherSens[i]
+  dyn <- Dynamics_CC(Params_trial)
+  WeatherDF_4.1$ColonisationTime_NegRho[i]  <-Find_Col_Time(dyn)
+  
+}
+
+
+###With positive E correlation
+Params_4.1$W_rho = +0.9
+
+for( i in 1:nrow(WeatherDF_4.1)){
+  Params_trial = Params_4.1
+  Params_trial$W_I_sd = WeatherDF_4.1$WeatherSens[i]
+  dyn <- Dynamics_CC(Params_trial)
+  WeatherDF_4.1$ColonisationTime_PosRho[i]  <-Find_Col_Time(dyn)
+  
+}
+
+```
+
+
+```{r}
+### 2. Dispersal variability and Allee effect 
+
+Params_4.2 <- list(  delta = 0.5, 
+                     Lam_R = 20,
+                     Lam_I = 16,   
+                     W_R_sd = 0.4, 
+                     W_I_sd = 0.7, 
+                     W_rho = 0,    
+                     Allee = NULL,
+                     a_RR = 0.02,  
+                     a_II = 0.05,
+                     y = 0.1,
+                     z= 0.2,
+                     a_RI = 0.03 , 
+                     a_IR = 0.04, 
+                     disp_sig = NULL , 
+                     disp_mean = 0.1, 
+                     beta_R =  -0.1, 
+                     beta_I =  0.8, 
+                     Discretise = FALSE
+)
+
+Params_4.2_ALLEE <- Params_4.2_NOALLEE <- Params_4.2
+Params_4.2_ALLEE$Allee = TRUE
+Params_4.2_NOALLEE$Allee = FALSE
+
+N_trials = 400
+WeatherDF_4.2<- data.frame( Dispersal_sd = c(rep(0, 10), seq(0, 1 , l = N_trials)) ,
+                            ColonisationTime_WithAllee = NA,
+                            ColonisationTime_No_Allee = NA)
+
+### With Allee 
+
+
+for( i in 1:nrow(WeatherDF_4.2)){
+  
+  Params_trial = Params_4.2_ALLEE
+  Params_trial$disp_sig = WeatherDF_4.2$Dispersal_sd[i]
+  dyn <- Dynamics_CC(Params_trial)
+  WeatherDF_4.2$ColonisationTime_WithAllee[i]  <-Find_Col_Time(dyn)
+  
+}
+### without Allee effect
+
+for( i in 1:nrow(WeatherDF_4.2)){
+  Params_trial = Params_4.2_NOALLEE
+  Params_trial$disp_sig = WeatherDF_4.2$Dispersal_sd[i]
+  dyn <- Dynamics_CC(Params_trial)
+  WeatherDF_4.2$ColonisationTime_No_Allee[i]  <-Find_Col_Time(dyn)
+  
+}
+
+```
+
+
+```{r}
+### 3. Demographic stochasticity interacting with  variation
+# NB effects opposite to 'classic' results
+
+
+Params_4.3 <- list( delta = 0.5, 
+                    Lam_R = 10,
+                    Lam_I = 6,   
+                    W_R_sd = 0.5, 
+                    W_I_sd = 0.5, 
+                    W_rho = 0 ,
+                    Allee = FALSE, 
+                    a_RR = 0.03,  
+                    a_II = 0.06,  
+                    a_RI = 0.04 , 
+                    a_IR = 0.03, 
+                    disp_sig = 0.01 ,
+                    disp_mean = 0.15, 
+                    beta_R =  -0.1, 
+                    beta_I =  0.8, 
+                    Discretise = NULL
+)
+
+
+
+N_trials = 500
+WeatherDF_4.3<- data.frame( Var = c(seq(0, 0.5, l = N_trials)) ,
+                            ColonisationTime_WithDemoStoch = NA,
+                            ColonisationTime_No_DemoStoch = NA)
+
+### With Demo_stoch 
+
+Params_4.3$Discretise = TRUE
+for( i in 1:nrow(WeatherDF_4.3)){
+  
+  Params_trial = Params_4.3
+  Params_trial$W_R_sd = WeatherDF_4.3$Var[i]
+  Params_trial$W_I_sd = WeatherDF_4.3$Var[i]
+  dyn <- Dynamics_CC(Params_trial)
+  WeatherDF_4.3$ColonisationTime_WithDemoStoch[i]  <-Find_Col_Time(dyn)
+  
+}
+
+
+### without Demo_stoch
+Params_4.3$Discretise = FALSE
+for( i in 1:nrow(WeatherDF_4.3)){
+  Params_trial = Params_4.3
+  Params_trial$W_R_sd = WeatherDF_4.3$Var[i]
+  Params_trial$W_I_sd = WeatherDF_4.3$Var[i]
+  dyn <- Dynamics_CC(Params_trial)
+  WeatherDF_4.3$ColonisationTime_No_DemoStoch[i]  <-Find_Col_Time(dyn)
+  
+}
+
+```
+
+```{r}
+### 4. Demographic stochastic interacting with variability on extinction Time
+Params_4.4 <- list( delta = 0.5, 
+                    Lam_R = 9,
+                    Lam_I = 7.6,   
+                    W_R_sd = NULL, 
+                    W_I_sd = 0.35, 
+                    W_rho =  -0.9 ,
+                    Allee = FALSE ,
+                    a_RR = 0.05,  
+                    a_II = 0.08,  
+                    a_RI = 0.03 , 
+                    a_IR = 0.02, 
+                    disp_sig = 0.01 ,
+                    disp_mean = 0.4, 
+                    beta_R =  -0.1, 
+                    beta_I =  0.8, 
+                    Discretise = NULL)
+
+N_trials = 500
+WeatherDF_4.4<- data.frame( MidWeatherSD = c(seq(0, 0.75 , l = N_trials)) ,
+                            ExtinctionTime_WithDemoStoch = 2000,
+                            ExtinctionTime_No_DemoStoch = 2000)
+
+par(mfrow=c(4,4 ))
+
+### With Demo_stoch 
+Params_4.4$Discretise = TRUE
+
+for( i in 1:nrow(WeatherDF_4.4)){
+  Params_trial = Params_4.4
+  Params_trial$W_R_sd = WeatherDF_4.4$MidWeatherSD[i]
+  dyn <- Dynamics_CC(Params_trial)
+  WeatherDF_4.4$ExtinctionTime_WithDemoStoch[i]  <-Find_Ext_Time(dyn)
+  
+}
+
+### without Demo_stoch
+Params_4.4$Discretise = FALSE
+for( i in 1:nrow(WeatherDF_4.4)){
+  Params_trial = Params_4.4
+  Params_trial$W_R_sd = WeatherDF_4.4$MidWeatherSD[i]
+  dyn <- Dynamics_CC(Params_trial)
+  WeatherDF_4.4$ExtinctionTime_No_DemoStoch[i]  <-Find_Ext_Time(dyn)
+}
+
+
+```
+
+
+```{r}
+### 5. Just focal species or both varying 
+
+
+Params_4.5 <- list( delta = 0.5, 
+                    Lam_R = 9,
+                    Lam_I = 3,   
+                    W_R_sd = 0, 
+                    W_I_sd = NULL, 
+                    W_rho =  0.9 ,
+                    Allee = FALSE ,
+                    a_RR = 0.05,  
+                    a_II = 0.08,  
+                    a_RI = 0.03 , 
+                    a_IR = 0.04, 
+                    disp_sig = 0.01 ,
+                    disp_mean = 0.2, 
+                    beta_R =  -0.1, 
+                    beta_I =  0.8, 
+                    Discretise = FALSE)
+
+N_trials = 500
+WeatherDF_4.5<- data.frame( MidWeatherSD = c(seq(0, 1 , l = N_trials)) ,
+                            ColonisationTime_JustFocal= 2000,
+                            ColonisationTime_Both = 2000)
+
+par(mfrow=c(4,4 ))
+
+### Vary Just focal
+for( i in 1:nrow(WeatherDF_4.5)){
+  Params_trial = Params_4.5
+  Params_trial$W_I_sd = WeatherDF_4.5$MidWeatherSD[i]
+  dyn <- Dynamics_CC(Params_trial)
+  WeatherDF_4.5$ColonisationTime_JustFocal[i]  <-Find_Col_Time(dyn)
+  
+}
+
+### Vary both species
+
+Params_4.5$Discretise = FALSE
+for( i in 1:nrow(WeatherDF_4.5)){
+  Params_trial = Params_4.5
+  Params_trial$W_I_sd = WeatherDF_4.5$MidWeatherSD[i]
+  Params_trial$W_R_sd = WeatherDF_4.5$MidWeatherSD[i]
+  Params_trial$W_R_sd = WeatherDF_4.5$MidWeatherSD[i]
+  dyn <- Dynamics_CC(Params_trial)
+  WeatherDF_4.5$ColonisationTime_Both[i]  <-Find_Col_Time(dyn)
+}
+
+
+```
+
+
+```{r fig.height=7}
+### combining into one figure, without dots
+
+
+### For 4.1, helpful to force intercept, rather than just rely on convergence after using enormous numbers of runs
+WeatherDF_4.1 %>%
+  rename(Negative= ColonisationTime_NegRho ,  ##   `ρ= −0.9`
+         Positive= ColonisationTime_PosRho  ) %>%
+  gather( 'Model', 'Time',Negative,  Positive) -> WeatherDF_4.1_Long
+
+WeatherDF_4.1_Long %>%
+  filter( WeatherSens ==0) %>%
+  pull(Time) %>%
+  mean -> intercept_4.1
+
+
+WeatherDF_4.1_Long$Smooth = c(predict( lm(data = filter( WeatherDF_4.1_Long,Model== 'Negative'),
+                                          Time-intercept_4.1 ~ 0+ WeatherSens + I(WeatherSens^2))),
+                              predict( lm(data = filter( WeatherDF_4.1_Long,Model== 'Positive'),
+                                          Time-intercept_4.1 ~ 0+ WeatherSens + I(WeatherSens^2))) )+intercept_4.1
+
+WeatherDF_4.1_Long %>%
+  ggplot( aes( x = WeatherSens, y = Time, col = Model))+
+  geom_smooth(aes(y = Smooth),
+              se=FALSE,
+              method = 'lm',
+              formula = y ~ x + I(x^2))+
+    xlab(expression(Invader~peformance~variability~omega[sigma~inv]))+
+  ylab('Colonisation Time') +
+  theme_classic()+ 
+  scale_colour_manual(values = c( 'darkblue', 'orange' ), 
+                      name = 'Correlation in\nspecies responses:')+
+  guides(col=guide_legend(nrow=2))+
+  theme(legend.position="top", legend.box = "horizontal")  -> Fig4a
+
+
+WeatherDF_4.2 %>%
+  rename(`With` = ColonisationTime_WithAllee  ,
+         `Without` = ColonisationTime_No_Allee  ) %>%
+  gather( 'Model', 'Time', starts_with('With')) %>%
+  ggplot( aes( x = Dispersal_sd, y = Time, col = Model))+
+  geom_smooth(se=FALSE, method = 'lm', formula = y ~ x + I(x^2))+
+  xlab(expression(Dispersal~sigma))+
+  ylab('Colonisation Time') +
+  theme_classic()+ 
+  scale_colour_manual(values = c( 'darkblue', 'orange' ),
+                      name = 'Allee Effect')+
+  guides(col=guide_legend(nrow=2))+
+  theme(legend.position="top", legend.box = "horizontal") -> Fig4b
+
+WeatherDF_4.3 %>%
+  rename(`With` = ColonisationTime_WithDemoStoch   ,
+         `Without` = ColonisationTime_No_DemoStoch  ) %>%
+  gather( 'Model', 'Time', starts_with('With')) %>%
+  ggplot( aes( x = Var, y = Time, col = Model))+
+  geom_smooth(se=FALSE, method = 'lm', formula = y ~ x + I(x^2))+
+  xlab(expression(Envrionmental~variability~omega[sigma]))+
+  ylab('Colonisation Time') +
+  theme_classic()+
+  scale_colour_manual(values = c( 'darkblue', 'orange' ),
+                      name = 'Demographic\nStochasticity:')+
+  guides(col=guide_legend(nrow=2))+
+  theme(legend.position="top", legend.box = "horizontal")-> Fig4c
+
+
+# 
+WeatherDF_4.5 %>%
+  rename(`Just Invader` = ColonisationTime_JustFocal    ,
+         `Both Species` = ColonisationTime_Both  ) %>%
+  gather( 'Model', 'Time',`Just Invader`,`Both Species` ) %>%
+  ggplot( aes( x = MidWeatherSD, y = Time, col = Model))+
+  geom_smooth(se=FALSE, method = 'lm', formula = y ~ x + I(x^2))+
+  xlab(expression(Envrionmental~variability~omega[sigma]))+
+  ylab('Colonisation Time') +
+  theme_classic()+
+  scale_colour_manual(values = c( 'darkblue', 'orange' ),
+                      name = 'Variability affects:' )+
+  guides(col=guide_legend(nrow=2))+
+  theme(legend.position="top", legend.box = "horizontal")-> Fig4d
+
+
+Fig6_withpoints<- cowplot::plot_grid(Fig4a+geom_point(),
+                                     Fig4b+geom_point(),
+                                     Fig4c+geom_point(),
+                                     Fig4d+geom_point(),
+                                  labels= c('i)', 'ii)', 'iii)', 'iv)'), label_fontface ='plain')
+
+Fig6_withpoints
+
+Fig6_simple <- cowplot::plot_grid(Fig4a + theme(axis.text = element_blank()),
+                                  Fig4b+ theme(axis.text = element_blank()),
+                                  Fig4c+ theme(axis.text = element_blank()),
+                                  Fig4d+ theme(axis.text = element_blank()),
+                                  labels= c('i)', 'ii)', 'iii)', 'iv)'), label_fontface ='plain' )
+
+ggsave(filename = 'MS_Figures/Fig6_simple.png',  Fig6_simple, width = 6, height = 6)
+
+
+```
+
+**Figure S4** Raw results underlying the smooth lines presented in Figure 6 of the main text.
+
+
+```{r}
+# Diagrams in Figure 2 and 3
+```
+
+```{r fig.height=3, fig.width=3}
+## environmental performance curve defined by gamma function
+
+SHAPE = 3
+SCALE = 1.5
+PEAK  = SCALE*(SHAPE -1)
+
+Center_1 <- 10
+Center_2 <- 0.6
+
+
+Test1 <- data.frame( E = rnorm(1000, Center_2, sd = 1.5) )
+Test2 <- data.frame( E = rnorm(1000, Center_1, sd = 1.5) )
+
+EPC_fig2 <- Vectorize(function( E){
+  if( E> PEAK){
+    Performance<-dgamma(x =PEAK+(E-PEAK)^0.75,  shape = SHAPE, scale = SCALE)
+  }else{
+    if(  E < PEAK-2){
+      Performance<-      dgamma(x =E+2,  shape = SHAPE, scale = SCALE)
+    }else{
+      Performance <-   dgamma(x =PEAK,  shape = SHAPE, scale = SCALE)
+    }
+  }
+  return(Performance)
+})
+
+```
+
+```{r fig.height=3, fig.width=3}
+Center_1 <- 10
+Center_2 <- 0.4
+
+Test1 <- data.frame( E = rnorm(1000, Center_1, sd = 1.5) )
+Test2 <- data.frame( E = rnorm(1000, Center_2, sd = 1) )
+
+# Take 2 
+
+data.frame( E = seq(-2, 15, l=1000)) %>%
+  mutate(Performance =  (EPC_fig2(E))) %>%
+  mutate( Weather1= dnorm( E, mean = Center_1, sd = 1.5)/5,
+          Weather2= dnorm( E, mean = Center_2, sd = 1)/5)%>%
+  ggplot( aes( x = E))+ 
+  geom_line(aes( y = Performance ))+
+  theme_classic()+
+  theme(axis.text = element_blank()  )+
+  xlab( 'Envrionment')+
+  geom_vline( xintercept = Center_1, col = 'orange')+
+  geom_vline( xintercept = Center_2, col = 'darkblue')+
+  geom_line( aes(y = Weather1), col = 'orange', linetype = 'dotted')+
+  geom_line( aes(y = Weather2), col = 'darkblue', linetype = 'dotted')+
+  scale_x_reverse()+
+  scale_y_continuous(limits = c(0.001,0.2))-> EPCPlot
+
+Performances<-data.frame( A = EPC_fig2(Test1$E),
+                          B = EPC_fig2(Test2$E)) %>%
+  gather( 'Test', 'Performance')
+
+Performances %>%
+  group_by(Test)%>%
+  summarise( Mean = mean(Performance)) -> Means
+
+Means$Orig= EPC_fig2(c(Center_1,Center_2))
+Means%>%
+  gather('key', 'value',  -Test)-> LineValuesMeans
+
+Performances%>%
+  ggplot( aes( Performance, fill = Test))+
+  geom_histogram()+
+  theme_classic()+
+  geom_vline(data = LineValuesMeans, aes(xintercept = value,linetype = key))+
+  scale_fill_manual(values =  c(  'orange','darkblue'))+
+  guides(sol = FALSE)+
+  ylab( 'Frequency')+
+  xlab( 'Performance')+
+  guides(fill = FALSE)+
+  scale_linetype(name = '',
+                 limits= c('Orig', 'Mean'), 
+                 labels = c('Value under\nmean conditions',
+                            'Long-term\naverage value' ))+
+  facet_wrap(~Test)+
+  theme(axis.text = element_blank(), strip.text = element_blank())+
+  #theme(legend.position="top", legend.box = "horizontal", )+
+  coord_flip(xlim = c(0.001,0.2))-> ReponseHist
+
+Fig2<-cowplot::plot_grid( EPCPlot,ReponseHist, rel_widths = c(1,1), labels = 'auto' )
+# Fig2
+ggsave('MS_Figures/Figure2.png', height = 3, width = 7)
+```
+
+```{r fig.height=3, fig.width=3}
+
+## code to generate Fig 3 little pictures 
+
+## 3ai  ### Interaction of biotic and abiotic impacts on R
+expand.grid( C = 0:100,
+             E = 0:100) %>%
+  mutate( R = (C*E)^0.8 ) %>%
+  ggplot( aes(E, C, z = R, fill = R))+
+  geom_raster()+
+  geom_contour( col = 'black')+
+  scale_fill_viridis_c(direction = -1) +
+  theme(panel.background = element_blank(),
+        axis.text = element_blank() )+
+  coord_fixed() -> Fig3ai
+# Fig3ai
+ggsave( 'MS_Figures/Fig3ai.png',Fig3ai,  width = 4, height =3, dpi = 600) 
+
+## 3aii negative correlation in biotic and abiotic influences on r
+Draws<-MASS::mvrnorm(30, c(2,2), matrix( c(2,-1.8, -1.8, 2), 2))
+colnames(Draws) <- c('E', 'C')
+
+Draws %>%
+  as.data.frame()%>%
+  mutate( Temp = E-C) %>%
+  #ggplot(aes( E, C, col = Temp))+
+    ggplot(aes( E, C))+
+  geom_point( size = 2)+
+  scale_colour_viridis_c(option = 'B')+
+  theme_classic()+
+  theme(axis.text = element_blank() )+
+  guides( col = FALSE) -> Fig3aii
+# Fig3aii
+ggsave( 'MS_Figures/Fig3aii.png',Fig3aii, width = 3, height =3, dpi = 600) 
+
+## 3b
+Center <- 4
+Test<- data.frame( E = runif(1000,min = 2.5, 5.5) ) %>%
+  mutate( Performance2 = exp(E))
+
+data.frame( E = seq(2, 6.1, l=1000)) %>%
+  mutate(Performance =  exp(E)) %>%
+  ggplot( aes( x = E))+ 
+  theme_classic()+
+  geom_rect(ymin = 0, ymax = exp(5.5), xmin = 2.5, xmax = 5.5, col = NA, size = 4, fill = 'grey80')+
+  #  geom_rect(ymin = -100, ymax = 10, xmin = 2, xmax = 6, col = 'red3', size = 4, fill = NA)+
+  geom_histogram(data = Test, aes( x = E), binwidth = 0.025)+
+  geom_line(aes( y = Performance ))+
+  ylab( 'Impact of competition\non growth rate')+
+  # theme(axis.text = element_blank()  )+
+  xlab( 'Envrionment')+
+  coord_cartesian(ylim = c( 0, 450))+
+  geom_vline( xintercept = Center, col = 'red') -> Fig3bi
+
+Test%>%
+  ggplot( aes( Performance2))+
+  geom_histogram(fill = 'red3')+
+  theme_classic()+
+  geom_vline( xintercept = mean(Test$Performance2),linetype = 2)+
+  geom_vline( xintercept = exp(Center),linetype = 1)+
+  ylab( 'Frequency')+
+  xlab( '')+
+  # theme(axis.text = element_blank(), strip.text = element_blank())+
+  #theme(legend.position="top", legend.box = "horizontal", )+
+  coord_flip(xlim = c(0, 450)) -> Fig3bii
+
+Fig3b<-cowplot::plot_grid( Fig3bi,Fig3bii, rel_widths = c(2,1), labels = c('i', 'ii'))
+# Fig3b
+ggsave( 'MS_Figures/Fig3b.png',Fig3b, width = 6, height =3, dpi = 600) 
+
+```
+
+\newpage
+# 4. Session Information
+
+```{R}
+sessionInfo()
+```
