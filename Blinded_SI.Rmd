@@ -10,7 +10,7 @@ editor_options:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, size = "footnotesize", warning = FALSE, message = FALSE)
-author: 'J. C. D. Terry,  J. D. O’Sullivan &  A. G. Rossberg'
+### author: 'J. C. D. Terry,  J. D. O’Sullivan &  A. G. Rossberg'
 
 ```
 
@@ -24,7 +24,8 @@ set.seed(1)
 
 ```
 
-This is a dynamically generated document using R Markdown. Source code (.rmd) for this document is available online, allowing complete replication. Code to generate the diagrams in figures 2 and 3 is visible in the .rmd source file.
+This is a dynamically generated document using R Markdown. Source code (.rmd) for this document is redacted for blind review, but will be available online, allowing complete replication. Code to generate the diagrams in figures 2 and 3 is visible in the .rmd source file.
+
 
 \newpage
 
